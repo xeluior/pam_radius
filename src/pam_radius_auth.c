@@ -711,7 +711,7 @@ static int initialize_sockets(radius_conf_t const *conf, int *sockfd, int *sockf
 	}
 #endif
 
-	if (vrf && vrf[0]) {
+	if (vrf && vrf[0] && strcmp(vrf, "none")) {
 #ifdef SO_BINDTODEVICE
 		int r = setsockopt(*sockfd, SOL_SOCKET, SO_BINDTODEVICE, vrf, strlen(vrf));
 		if (r != 0) {
@@ -759,7 +759,7 @@ use_ipv6:
 	}
 #endif
 
-	if (vrf && vrf[0]) {
+	if (vrf && vrf[0] && strcmp(vrf, "none")) {
 #ifdef SO_BINDTODEVICE
 		int r = setsockopt(*sockfd6, SOL_SOCKET, SO_BINDTODEVICE, vrf, strlen(vrf));
 		if (r != 0) {
