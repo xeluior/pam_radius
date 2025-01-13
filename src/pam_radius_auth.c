@@ -732,6 +732,14 @@ static int initialize_sockets(radius_conf_t const *conf, int *sockfd, int *sockf
 		return -1;
 	}
 
+        /* initiate a connection on the socket */
+        if (connect(*sockfd, (struct sockaddr *)salocal4, sizeof (struct sockaddr_in)) < 0) {
+            char error_string[BUFFER_SIZE];
+            get_error_string(errno, error_string, sizeof(error_string));
+            _pam_log(LOG_ERR, "Failed connecting to port: %s", error_string);
+            return -1;
+        }
+
 	if (!conf->use_ipv6) {
 		*sockfd6 = -1;
 		return 0;
