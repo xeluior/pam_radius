@@ -1161,7 +1161,7 @@ static int talk_radius(radius_conf_t *conf, AUTH_HDR *request, AUTH_HDR *respons
 		}
 
 		/* send the packet */
-		if (sendto(sockfd, (char *) request, total_length, 0, server->ip, salen) < 0) {
+		if (write(sockfd, (char *) request, total_length) < 0) {
 			char error_string[BUFFER_SIZE];
 			get_error_string(errno, error_string, sizeof(error_string));
 			_pam_log(LOG_ERR, "Error sending RADIUS packet to server %s: %s",
