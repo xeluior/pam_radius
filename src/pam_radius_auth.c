@@ -688,7 +688,7 @@ static void cleanup(radius_server_t *server)
 	}
 }
 
-static int initialize_sockets(radius_conf_t const *conf, int *sockfd, int *sockfd6, struct sockaddr_storage *salocal4, struct sockaddr_storage *salocal6, char *vrf)
+static int initialize_sockets(radius_conf_t const *conf, int *sockfd, int *sockfd6, struct sockaddr_storage *salocal4, struct sockaddr_storage *salocal6, char *vrf, int socket_type)
 {
 	if (!conf->use_ipv4) {
 		*sockfd = -1;
@@ -696,7 +696,7 @@ static int initialize_sockets(radius_conf_t const *conf, int *sockfd, int *sockf
 	}
 
 	/* open a socket.	Dies if it fails */
-	*sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	*sockfd = socket(AF_INET, socket_type, 0);
 	if (*sockfd < 0) {
 		char error_string[BUFFER_SIZE];
 		get_error_string(errno, error_string, sizeof(error_string));
@@ -739,7 +739,7 @@ static int initialize_sockets(radius_conf_t const *conf, int *sockfd, int *sockf
 
 use_ipv6:
 	/* open a IPv6 socket. */
-	*sockfd6 = socket(AF_INET6, SOCK_DGRAM, 0);
+	*sockfd6 = socket(AF_INET6, socket_type, 0);
 	if (*sockfd6 < 0) {
 		char error_string[BUFFER_SIZE];
 
@@ -804,6 +804,8 @@ static int initialize(radius_conf_t *conf, int accounting)
 	char src_ip[MAX_IP_LEN];
 	int valid_src_ip;
 	char vrf[IFNAMSIZ];
+	char proto[BUFFER_SIZE];
+	int socket_type;
 
 	memset(&salocal4, 0, sizeof(salocal4));
 	memset(&salocal6, 0, sizeof(salocal6));
@@ -857,11 +859,13 @@ static int initialize(radius_conf_t *conf, int accounting)
 		timeout = 3;
 		src_ip[0] = 0;
 		vrf[0] = 0;
+		proto[0] = 0;
+                socket_type = SOCK_DGRAM;
 
 		/*
 		 *	Scan the line for data.
 		 */
-		if (sscanf(p, "%s %s %d %s %s", hostname, secret, &timeout, src_ip, vrf) < 2) {
+		if (sscanf(p, "%s %s %d %s %s %s", hostname, secret, &timeout, src_ip, vrf, proto) < 2) {
 			_pam_log(LOG_ERR, "ERROR reading %s, line %d: Could not read hostname or secret\n",
 				 conf->conf_file, line);
 			continue;			/* invalid line */
@@ -908,6 +912,13 @@ static int initialize(radius_conf_t *conf, int accounting)
 		valid_src_ip = -1;
 		vrf[IFNAMSIZ - 1] = 0;
 
+		/*
+		 *	Change the socket type if needed
+		 */
+		if (!strcmp(proto, "tcp")) {
+			socket_type = SOCK_STREAM;
+		}
+
 		memset(&salocal, 0, sizeof(salocal));
 		valid_src_ip = get_ipaddr(src_ip, (struct sockaddr *)&salocal, NULL);
 		if (valid_src_ip == 0) {
@@ -923,7 +934,7 @@ static int initialize(radius_conf_t *conf, int accounting)
 		}
 
 		if (valid_src_ip == 0 || vrf[0]) {
-			if (initialize_sockets(conf, &server->sockfd, &server->sockfd6, &salocal4, &salocal6, vrf) != 0) {
+			if (initialize_sockets(conf, &server->sockfd, &server->sockfd6, &salocal4, &salocal6, vrf, socket_type) != 0) {
 
 				goto error;
 			}
@@ -944,7 +955,7 @@ static int initialize(radius_conf_t *conf, int accounting)
 	((struct sockaddr *)&salocal4)->sa_family = AF_INET;
 	((struct sockaddr *)&salocal6)->sa_family = AF_INET6;
 
-	if (initialize_sockets(conf, &conf->sockfd, &conf->sockfd6, &salocal4, &salocal6, NULL) != 0) {
+	if (initialize_sockets(conf, &conf->sockfd, &conf->sockfd6, &salocal4, &salocal6, NULL, SOCK_DGRAM) != 0) {
 		goto error;
 	}
 
